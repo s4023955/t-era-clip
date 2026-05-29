@@ -59,7 +59,6 @@ The following are intentionally excluded from v0.1:
 
 Project documentation is stored in the `docs` folder:
 
-'''text
 docs/
 ├── PRD_v0.1.md
 ├── MVP_SCOPE_v0.1.md
