@@ -5,6 +5,9 @@ import type { TeraClipItem, TeraClipPriority, TeraClipStatus } from '../shared/t
 const STATUS_OPTIONS: TeraClipStatus[] = ['inbox', 'todo', 'doing', 'waiting', 'done', 'archived'];
 const PRIORITY_OPTIONS: TeraClipPriority[] = ['low', 'medium', 'high', 'urgent'];
 
+type StatusFilter = TeraClipStatus | 'all';
+type PriorityFilter = TeraClipPriority | 'all';
+
 type ItemDraft = {
   title: string;
   notes: string;
@@ -46,6 +49,8 @@ const getErrorMessage = (error: unknown): string => {
 export function PopupApp() {
   const [items, setItems] = useState<TeraClipItem[]>([]);
   const [itemDrafts, setItemDrafts] = useState<ItemDrafts>({});
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [updatingItemIds, setUpdatingItemIds] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState('');
@@ -211,8 +216,19 @@ export function PopupApp() {
     void loadItems();
   }, [loadItems]);
 
+  const isFiltering = statusFilter !== 'all' || priorityFilter !== 'all';
+  const filteredItems = items.filter((item) => {
+    const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+    const matchesPriority = priorityFilter === 'all' || item.priority === priorityFilter;
+
+    return matchesStatus && matchesPriority;
+  });
+  const itemCountLabel = isFiltering
+    ? `${filteredItems.length} of ${items.length} ${items.length === 1 ? 'item' : 'items'}`
+    : `${items.length} ${items.length === 1 ? 'captured item' : 'captured items'}`;
+
   return (
-    <div className="h-[520px] w-96 overflow-hidden bg-slate-950 text-slate-100">
+    <div className="flex h-[520px] w-96 flex-col overflow-hidden bg-slate-950 text-slate-100">
       <div className="border-b border-slate-800 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -232,12 +248,61 @@ export function PopupApp() {
           </button>
         </div>
 
-        <p className="mt-3 text-xs text-slate-500">
-          {items.length} {items.length === 1 ? 'captured item' : 'captured items'}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+            Status
+            <select
+              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-medium capitalize text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500"
+              onChange={(event) => {
+                setStatusFilter(event.target.value as StatusFilter);
+              }}
+              value={statusFilter}
+            >
+              <option value="all">All</option>
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+            Priority
+            <select
+              className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-medium capitalize text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500"
+              onChange={(event) => {
+                setPriorityFilter(event.target.value as PriorityFilter);
+              }}
+              value={priorityFilter}
+            >
+              <option value="all">All</option>
+              {PRIORITY_OPTIONS.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {isFiltering && (
+            <button
+              className="rounded-md border border-slate-700 px-2 py-1 text-[11px] font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-900"
+              onClick={() => {
+                setStatusFilter('all');
+                setPriorityFilter('all');
+              }}
+              type="button"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        <p className="mt-2 text-xs text-slate-500">{itemCountLabel}</p>
       </div>
 
-      <div className="h-[404px] overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {isLoading ? (
           <div className="rounded-md border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
             Loading captured items...
@@ -254,6 +319,11 @@ export function PopupApp() {
               Select text on any webpage, right-click, and choose Save to T-eraClip.
             </p>
           </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="rounded-md border border-slate-800 bg-slate-900 p-4">
+            <p className="text-sm font-medium text-slate-100">No items match the selected filters.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">Clear filters to show all captured items.</p>
+          </div>
         ) : (
           <div className="space-y-3">
             {updateErrorMessage && (
@@ -262,7 +332,7 @@ export function PopupApp() {
               </div>
             )}
 
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const draft = itemDrafts[item.id] ?? {
                 title: item.title,
                 notes: item.notes
