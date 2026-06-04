@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { getItems } from '../shared/storage';
-import type { TeraClipItem } from '../shared/types';
+import { getItems, updateItem } from '../shared/storage';
+import type { TeraClipItem, TeraClipStatus } from '../shared/types';
+
+const STATUS_OPTIONS: TeraClipStatus[] = ['inbox', 'todo', 'doing', 'waiting', 'done', 'archived'];
 
 const sortNewestFirst = (items: TeraClipItem[]): TeraClipItem[] =>
   [...items].sort((first, second) => {
@@ -36,11 +38,14 @@ const getErrorMessage = (error: unknown): string => {
 export function PopupApp() {
   const [items, setItems] = useState<TeraClipItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [updatingItemIds, setUpdatingItemIds] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState('');
+  const [updateErrorMessage, setUpdateErrorMessage] = useState('');
 
   const loadItems = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage('');
+    setUpdateErrorMessage('');
 
     try {
       const storedItems = await getItems();
@@ -52,6 +57,36 @@ export function PopupApp() {
       setIsLoading(false);
     }
   }, []);
+
+  const handleStatusChange = async (item: TeraClipItem, status: TeraClipStatus) => {
+    if (item.status === status) {
+      return;
+    }
+
+    const updatedItem: TeraClipItem = {
+      ...item,
+      status,
+      updatedAt: new Date().toISOString()
+    };
+
+    setUpdateErrorMessage('');
+    setUpdatingItemIds((currentIds) => new Set(currentIds).add(item.id));
+
+    try {
+      await updateItem(updatedItem);
+      setItems((currentItems) =>
+        sortNewestFirst(currentItems.map((currentItem) => (currentItem.id === item.id ? updatedItem : currentItem)))
+      );
+    } catch (error) {
+      setUpdateErrorMessage(`Could not update item status. ${getErrorMessage(error)}`);
+    } finally {
+      setUpdatingItemIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        nextIds.delete(item.id);
+        return nextIds;
+      });
+    }
+  };
 
   useEffect(() => {
     void loadItems();
@@ -102,6 +137,12 @@ export function PopupApp() {
           </div>
         ) : (
           <div className="space-y-3">
+            {updateErrorMessage && (
+              <div className="rounded-md border border-red-900 bg-red-950/40 p-3 text-xs text-red-100">
+                {updateErrorMessage}
+              </div>
+            )}
+
             {items.map((item) => (
               <article className="rounded-md border border-slate-800 bg-slate-900 p-4" key={item.id}>
                 <div className="flex items-start justify-between gap-3">
@@ -118,10 +159,25 @@ export function PopupApp() {
                   </div>
                 )}
 
-                <div className="mt-3 flex gap-2">
-                  <span className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium capitalize text-slate-300">
-                    {item.status}
-                  </span>
+                <div className="mt-3 flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
+                    Status
+                    <select
+                      className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-medium capitalize text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={updatingItemIds.has(item.id)}
+                      onChange={(event) => {
+                        void handleStatusChange(item, event.target.value as TeraClipStatus);
+                      }}
+                      value={item.status}
+                    >
+                      {STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
                   <span className="rounded-md bg-slate-800 px-2 py-1 text-[11px] font-medium capitalize text-slate-300">
                     {item.priority}
                   </span>
