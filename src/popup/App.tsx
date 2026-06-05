@@ -6,6 +6,12 @@ import {
   generateWaitingList
 } from '../shared/reportGenerator';
 import { getItems, updateItem } from '../shared/storage';
+import {
+  generateInternalFollowUpTemplate,
+  generateLeadershipSummaryTemplate,
+  generateMeetingActionListTemplate,
+  generateVendorFollowUpTemplate
+} from '../shared/templateGenerator';
 import type { TeraClipItem, TeraClipPriority, TeraClipStatus } from '../shared/types';
 
 const STATUS_OPTIONS: TeraClipStatus[] = ['inbox', 'todo', 'doing', 'waiting', 'done', 'archived'];
@@ -14,6 +20,7 @@ const PRIORITY_OPTIONS: TeraClipPriority[] = ['low', 'medium', 'high', 'urgent']
 type StatusFilter = TeraClipStatus | 'all';
 type PriorityFilter = TeraClipPriority | 'all';
 type ReportType = 'daily' | 'followup' | 'waiting' | 'completed';
+type TemplateType = 'vendor' | 'internal' | 'leadership' | 'meeting';
 
 type ItemDraft = {
   title: string;
@@ -27,6 +34,13 @@ const REPORT_OPTIONS: { label: string; value: ReportType }[] = [
   { label: 'Follow-up list', value: 'followup' },
   { label: 'Waiting list', value: 'waiting' },
   { label: 'Completed list', value: 'completed' }
+];
+
+const TEMPLATE_OPTIONS: { label: string; value: TemplateType }[] = [
+  { label: 'Vendor follow-up', value: 'vendor' },
+  { label: 'Internal follow-up', value: 'internal' },
+  { label: 'Leadership summary', value: 'leadership' },
+  { label: 'Meeting action list', value: 'meeting' }
 ];
 
 const sortNewestFirst = (items: TeraClipItem[]): TeraClipItem[] =>
@@ -74,6 +88,20 @@ const generateReportText = (reportType: ReportType, items: TeraClipItem[]): stri
   }
 };
 
+const generateTemplateText = (templateType: TemplateType, items: TeraClipItem[]): string => {
+  switch (templateType) {
+    case 'internal':
+      return generateInternalFollowUpTemplate(items);
+    case 'leadership':
+      return generateLeadershipSummaryTemplate(items);
+    case 'meeting':
+      return generateMeetingActionListTemplate(items);
+    case 'vendor':
+    default:
+      return generateVendorFollowUpTemplate(items);
+  }
+};
+
 export function PopupApp() {
   const [items, setItems] = useState<TeraClipItem[]>([]);
   const [itemDrafts, setItemDrafts] = useState<ItemDrafts>({});
@@ -82,6 +110,9 @@ export function PopupApp() {
   const [reportType, setReportType] = useState<ReportType>('daily');
   const [reportText, setReportText] = useState('');
   const [reportFeedback, setReportFeedback] = useState('');
+  const [templateType, setTemplateType] = useState<TemplateType>('vendor');
+  const [templateText, setTemplateText] = useState('');
+  const [templateFeedback, setTemplateFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [updatingItemIds, setUpdatingItemIds] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState('');
@@ -94,6 +125,7 @@ export function PopupApp() {
     setUpdateErrorMessage('');
     setValidationErrors({});
     setReportFeedback('');
+    setTemplateFeedback('');
 
     try {
       const storedItems = await getItems();
@@ -262,6 +294,24 @@ export function PopupApp() {
     }
   };
 
+  const handleGenerateTemplate = () => {
+    setTemplateText(generateTemplateText(templateType, items));
+    setTemplateFeedback('');
+  };
+
+  const handleCopyTemplate = async () => {
+    if (!templateText) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(templateText);
+      setTemplateFeedback('Copied to clipboard.');
+    } catch (error) {
+      setTemplateFeedback(`Could not copy template. ${getErrorMessage(error)}`);
+    }
+  };
+
   useEffect(() => {
     void loadItems();
   }, [loadItems]);
@@ -413,6 +463,72 @@ export function PopupApp() {
                   disabled={!reportText}
                   onClick={() => {
                     void handleCopyReport();
+                  }}
+                  type="button"
+                >
+                  Copy
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="mb-4 rounded-md border border-slate-800 bg-slate-900 p-4">
+          <h2 className="text-sm font-semibold text-slate-100">Templates</h2>
+          <p className="mt-1 text-[11px] leading-4 text-slate-500">
+            Templates use all saved items, not just filtered results.
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="min-w-0 flex-1 text-[11px] font-medium text-slate-400">
+              Template type
+              <select
+                className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs font-medium text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500"
+                onChange={(event) => {
+                  setTemplateType(event.target.value as TemplateType);
+                  setTemplateFeedback('');
+                }}
+                value={templateType}
+              >
+                {TEMPLATE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isLoading}
+              onClick={handleGenerateTemplate}
+              type="button"
+            >
+              Generate
+            </button>
+          </div>
+
+          {templateText && (
+            <>
+              <textarea
+                className="mt-3 h-32 w-full resize-none rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs leading-5 text-slate-100 outline-none"
+                readOnly
+                value={templateText}
+              />
+
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p
+                  className={`min-h-4 text-[11px] ${
+                    templateFeedback.startsWith('Could not') ? 'text-red-200' : 'text-emerald-300'
+                  }`}
+                >
+                  {templateFeedback}
+                </p>
+                <button
+                  className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={!templateText}
+                  onClick={() => {
+                    void handleCopyTemplate();
                   }}
                   type="button"
                 >
