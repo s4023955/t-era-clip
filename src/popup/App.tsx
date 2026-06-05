@@ -1,4 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  generateCompletedList,
+  generateDailyReport,
+  generateFollowUpList,
+  generateWaitingList
+} from '../shared/reportGenerator';
 import { getItems, updateItem } from '../shared/storage';
 import type { TeraClipItem, TeraClipPriority, TeraClipStatus } from '../shared/types';
 
@@ -7,6 +13,7 @@ const PRIORITY_OPTIONS: TeraClipPriority[] = ['low', 'medium', 'high', 'urgent']
 
 type StatusFilter = TeraClipStatus | 'all';
 type PriorityFilter = TeraClipPriority | 'all';
+type ReportType = 'daily' | 'followup' | 'waiting' | 'completed';
 
 type ItemDraft = {
   title: string;
@@ -14,6 +21,13 @@ type ItemDraft = {
 };
 
 type ItemDrafts = Record<string, ItemDraft>;
+
+const REPORT_OPTIONS: { label: string; value: ReportType }[] = [
+  { label: 'Daily report', value: 'daily' },
+  { label: 'Follow-up list', value: 'followup' },
+  { label: 'Waiting list', value: 'waiting' },
+  { label: 'Completed list', value: 'completed' }
+];
 
 const sortNewestFirst = (items: TeraClipItem[]): TeraClipItem[] =>
   [...items].sort((first, second) => {
@@ -46,11 +60,28 @@ const getErrorMessage = (error: unknown): string => {
   return 'Unable to load captured items.';
 };
 
+const generateReportText = (reportType: ReportType, items: TeraClipItem[]): string => {
+  switch (reportType) {
+    case 'followup':
+      return generateFollowUpList(items);
+    case 'waiting':
+      return generateWaitingList(items);
+    case 'completed':
+      return generateCompletedList(items);
+    case 'daily':
+    default:
+      return generateDailyReport(items);
+  }
+};
+
 export function PopupApp() {
   const [items, setItems] = useState<TeraClipItem[]>([]);
   const [itemDrafts, setItemDrafts] = useState<ItemDrafts>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
+  const [reportType, setReportType] = useState<ReportType>('daily');
+  const [reportText, setReportText] = useState('');
+  const [reportFeedback, setReportFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [updatingItemIds, setUpdatingItemIds] = useState<Set<string>>(new Set());
   const [errorMessage, setErrorMessage] = useState('');
@@ -62,6 +93,7 @@ export function PopupApp() {
     setErrorMessage('');
     setUpdateErrorMessage('');
     setValidationErrors({});
+    setReportFeedback('');
 
     try {
       const storedItems = await getItems();
@@ -212,6 +244,24 @@ export function PopupApp() {
     }
   };
 
+  const handleGenerateReport = () => {
+    setReportText(generateReportText(reportType, items));
+    setReportFeedback('');
+  };
+
+  const handleCopyReport = async () => {
+    if (!reportText) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setReportFeedback('Copied to clipboard.');
+    } catch (error) {
+      setReportFeedback(`Could not copy report. ${getErrorMessage(error)}`);
+    }
+  };
+
   useEffect(() => {
     void loadItems();
   }, [loadItems]);
@@ -303,6 +353,76 @@ export function PopupApp() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <section className="mb-4 rounded-md border border-slate-800 bg-slate-900 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-100">Reports</h2>
+              <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                Reports use all saved items, not just filtered results.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="min-w-0 flex-1 text-[11px] font-medium text-slate-400">
+              Report type
+              <select
+                className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs font-medium text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500"
+                onChange={(event) => {
+                  setReportType(event.target.value as ReportType);
+                  setReportFeedback('');
+                }}
+                value={reportType}
+              >
+                {REPORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isLoading}
+              onClick={handleGenerateReport}
+              type="button"
+            >
+              Generate
+            </button>
+          </div>
+
+          {reportText && (
+            <>
+              <textarea
+                className="mt-3 h-32 w-full resize-none rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-xs leading-5 text-slate-100 outline-none"
+                readOnly
+                value={reportText}
+              />
+
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p
+                  className={`min-h-4 text-[11px] ${
+                    reportFeedback.startsWith('Could not') ? 'text-red-200' : 'text-emerald-300'
+                  }`}
+                >
+                  {reportFeedback}
+                </p>
+                <button
+                  className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={!reportText}
+                  onClick={() => {
+                    void handleCopyReport();
+                  }}
+                  type="button"
+                >
+                  Copy
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+
         {isLoading ? (
           <div className="rounded-md border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
             Loading captured items...

@@ -1,36 +1,58 @@
 import type { TeraClipItem } from './types';
 
-export function generateDailyReport(items: TeraClipItem[]): string {
-  if (items.length === 0) {
-    return 'No captured items are available for the daily report.';
+const FOLLOW_UP_STATUSES = new Set(['todo', 'doing', 'waiting']);
+
+const formatGeneratedAt = (): string => new Date().toLocaleString();
+
+const formatItemLine = (item: TeraClipItem): string => {
+  const details = [`status: ${item.status}`, `priority: ${item.priority}`];
+  const lines = [`- ${item.title || 'Untitled item'} (${details.join(', ')})`];
+
+  if (item.notes.trim()) {
+    lines.push(`  Notes: ${item.notes.trim()}`);
   }
 
-  return [`Daily report summary (${new Date().toLocaleDateString()}):`, ...items.map((item) => `- [${item.type}] ${item.title}`)].join('\n');
+  if (item.sourceUrl.trim()) {
+    lines.push(`  Source: ${item.sourceUrl.trim()}`);
+  }
+
+  return lines.join('\n');
+};
+
+const buildReport = (title: string, items: TeraClipItem[], emptyMessage: string): string => {
+  const lines = [title, `Generated: ${formatGeneratedAt()}`, `Item count: ${items.length}`, ''];
+
+  if (items.length === 0) {
+    lines.push(emptyMessage);
+    return lines.join('\n');
+  }
+
+  lines.push(...items.map(formatItemLine));
+  return lines.join('\n\n');
+};
+
+export function generateDailyReport(items: TeraClipItem[]): string {
+  const reportItems = items.filter((item) => item.status !== 'archived');
+
+  return buildReport('Daily report', reportItems, 'No non-archived items are available for this daily report.');
 }
 
 export function generateFollowUpList(items: TeraClipItem[]): string {
-  const followups = items.filter((item) => item.type === 'followup');
-  if (followups.length === 0) {
-    return 'No follow-up items available.';
-  }
+  const followups = items.filter(
+    (item) => item.status !== 'archived' && (FOLLOW_UP_STATUSES.has(item.status) || item.type === 'followup')
+  );
 
-  return ['Follow-up list:', ...followups.map((item) => `- ${item.title} (${item.sourceTitle})`)].join('\n');
+  return buildReport('Follow-up list', followups, 'No active follow-up items are available.');
 }
 
 export function generateWaitingList(items: TeraClipItem[]): string {
   const waiting = items.filter((item) => item.status === 'waiting');
-  if (waiting.length === 0) {
-    return 'No waiting items found.';
-  }
 
-  return ['Waiting list:', ...waiting.map((item) => `- ${item.title} — ${item.owner || 'unassigned'}`)].join('\n');
+  return buildReport('Waiting list', waiting, 'No waiting items found.');
 }
 
 export function generateCompletedList(items: TeraClipItem[]): string {
   const completed = items.filter((item) => item.status === 'done');
-  if (completed.length === 0) {
-    return 'No completed items found.';
-  }
 
-  return ['Completed items:', ...completed.map((item) => `- ${item.title} (completed)`)].join('\n');
+  return buildReport('Completed list', completed, 'No completed items found.');
 }
