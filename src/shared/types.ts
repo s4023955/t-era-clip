@@ -15,6 +15,12 @@ export type TeraClipStatus =
 
 export type TeraClipPriority = 'low' | 'medium' | 'high' | 'urgent';
 
+export type TeraClipReportLanguage = 'vi' | 'en';
+
+export interface TeraClipSettings {
+  defaultReportLanguage: TeraClipReportLanguage;
+}
+
 export interface TeraClipItem {
   id: string;
   type: TeraClipItemType;

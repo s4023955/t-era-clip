@@ -1,6 +1,11 @@
-import type { TeraClipItem } from './types';
+import type { TeraClipItem, TeraClipSettings } from './types';
 
-const STORAGE_KEY = 'teraClipItems';
+const ITEMS_STORAGE_KEY = 'teraClipItems';
+const SETTINGS_STORAGE_KEY = 'teraClipSettings';
+
+export const DEFAULT_SETTINGS: TeraClipSettings = {
+  defaultReportLanguage: 'vi'
+};
 
 const getStorage = () => {
   const chromeApi = typeof globalThis !== 'undefined' ? (globalThis as any).chrome : undefined;
@@ -22,14 +27,14 @@ export async function getItems(): Promise<TeraClipItem[]> {
   const storage = getStorage();
 
   return new Promise((resolve, reject) => {
-    storage.get([STORAGE_KEY], (result: any) => {
+    storage.get([ITEMS_STORAGE_KEY], (result: any) => {
       const error = getChromeLastError();
       if (error) {
         reject(new Error(error));
         return;
       }
 
-      resolve(result[STORAGE_KEY] ?? []);
+      resolve(result[ITEMS_STORAGE_KEY] ?? []);
     });
   });
 }
@@ -38,7 +43,7 @@ export async function saveItems(items: TeraClipItem[]): Promise<void> {
   const storage = getStorage();
 
   return new Promise((resolve, reject) => {
-    storage.set({ [STORAGE_KEY]: items }, () => {
+    storage.set({ [ITEMS_STORAGE_KEY]: items }, () => {
       const error = getChromeLastError();
       if (error) {
         reject(new Error(error));
@@ -64,7 +69,59 @@ export async function clearItems(): Promise<void> {
   const storage = getStorage();
 
   return new Promise((resolve, reject) => {
-    storage.remove([STORAGE_KEY], () => {
+    storage.remove([ITEMS_STORAGE_KEY], () => {
+      const error = getChromeLastError();
+      if (error) {
+        reject(new Error(error));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+export async function getSettings(): Promise<TeraClipSettings> {
+  const storage = getStorage();
+
+  return new Promise((resolve, reject) => {
+    storage.get([SETTINGS_STORAGE_KEY], (result: any) => {
+      const error = getChromeLastError();
+      if (error) {
+        reject(new Error(error));
+        return;
+      }
+
+      const storedSettings = result[SETTINGS_STORAGE_KEY];
+      const defaultReportLanguage =
+        storedSettings?.defaultReportLanguage === 'en' || storedSettings?.defaultReportLanguage === 'vi'
+          ? storedSettings.defaultReportLanguage
+          : DEFAULT_SETTINGS.defaultReportLanguage;
+
+      resolve({ defaultReportLanguage });
+    });
+  });
+}
+
+export async function saveSettings(settings: TeraClipSettings): Promise<void> {
+  const storage = getStorage();
+
+  return new Promise((resolve, reject) => {
+    storage.set({ [SETTINGS_STORAGE_KEY]: settings }, () => {
+      const error = getChromeLastError();
+      if (error) {
+        reject(new Error(error));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+export async function clearAllLocalData(): Promise<void> {
+  const storage = getStorage();
+
+  return new Promise((resolve, reject) => {
+    storage.remove([ITEMS_STORAGE_KEY, SETTINGS_STORAGE_KEY], () => {
       const error = getChromeLastError();
       if (error) {
         reject(new Error(error));
