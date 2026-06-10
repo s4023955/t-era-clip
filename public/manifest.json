@@ -3,8 +3,7 @@
   "description": "Clip anything. Turn it into action.",
   "version": "0.1.0",
   "manifest_version": 3,
-  "permissions": ["storage", "contextMenus", "activeTab", "scripting"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": ["storage", "contextMenus", "activeTab"],
   "action": {
     "default_popup": "popup.html",
     "default_title": "T-eraClip"
@@ -13,12 +12,5 @@
   "background": {
     "service_worker": "background.js",
     "type": "module"
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ]
+  }
 }
