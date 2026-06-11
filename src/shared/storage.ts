@@ -3,8 +3,65 @@ import type { TeraClipItem, TeraClipSettings } from './types';
 const ITEMS_STORAGE_KEY = 'teraClipItems';
 const SETTINGS_STORAGE_KEY = 'teraClipSettings';
 
+const ITEM_TYPES = ['task', 'checklist', 'followup', 'note', 'report_input'] as const;
+const ITEM_STATUSES = ['inbox', 'todo', 'doing', 'waiting', 'done', 'archived'] as const;
+const ITEM_PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const;
+
 export const DEFAULT_SETTINGS: TeraClipSettings = {
   defaultReportLanguage: 'vi'
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const isString = (value: unknown): value is string => typeof value === 'string';
+
+const isOneOf = <T extends string>(value: unknown, allowedValues: readonly T[]): value is T =>
+  typeof value === 'string' && allowedValues.includes(value as T);
+
+const isValidTeraClipItem = (value: unknown): value is TeraClipItem => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isString(value.id) &&
+    isOneOf(value.type, ITEM_TYPES) &&
+    isString(value.title) &&
+    isString(value.originalText) &&
+    isString(value.sourceUrl) &&
+    isString(value.sourceTitle) &&
+    isString(value.createdAt) &&
+    isString(value.updatedAt) &&
+    isOneOf(value.status, ITEM_STATUSES) &&
+    isOneOf(value.priority, ITEM_PRIORITIES) &&
+    isString(value.owner) &&
+    isString(value.dueDate) &&
+    isString(value.category) &&
+    Array.isArray(value.tags) &&
+    value.tags.every(isString) &&
+    isString(value.notes)
+  );
+};
+
+const sanitizeStoredItems = (value: unknown): TeraClipItem[] => {
+  if (value === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    console.warn('T-eraClip ignored stored items because the value is not an array.');
+    return [];
+  }
+
+  const validItems = value.filter(isValidTeraClipItem);
+  const invalidItemCount = value.length - validItems.length;
+
+  if (invalidItemCount > 0) {
+    console.warn(`T-eraClip ignored ${invalidItemCount} invalid stored item(s).`);
+  }
+
+  return validItems;
 };
 
 const getStorage = () => {
@@ -34,7 +91,7 @@ export async function getItems(): Promise<TeraClipItem[]> {
         return;
       }
 
-      resolve(result[ITEMS_STORAGE_KEY] ?? []);
+      resolve(sanitizeStoredItems(result[ITEMS_STORAGE_KEY]));
     });
   });
 }
