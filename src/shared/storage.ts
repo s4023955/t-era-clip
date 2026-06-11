@@ -117,6 +117,30 @@ export async function saveSettings(settings: TeraClipSettings): Promise<void> {
   });
 }
 
+export async function replaceLocalData(
+  items: TeraClipItem[],
+  settings: TeraClipSettings
+): Promise<void> {
+  const storage = getStorage();
+
+  return new Promise((resolve, reject) => {
+    storage.set(
+      {
+        [ITEMS_STORAGE_KEY]: items,
+        [SETTINGS_STORAGE_KEY]: settings
+      },
+      () => {
+        const error = getChromeLastError();
+        if (error) {
+          reject(new Error(error));
+          return;
+        }
+        resolve();
+      }
+    );
+  });
+}
+
 export async function clearAllLocalData(): Promise<void> {
   const storage = getStorage();
 

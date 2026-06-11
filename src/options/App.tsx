@@ -4,7 +4,7 @@ import {
   DEFAULT_SETTINGS,
   getItems,
   getSettings,
-  saveItems,
+  replaceLocalData,
   saveSettings
 } from '../shared/storage';
 import type {
@@ -224,8 +224,7 @@ export function OptionsApp() {
         return;
       }
 
-      await saveItems(importedBackup.items);
-      await saveSettings(importedBackup.settings);
+      await replaceLocalData(importedBackup.items, importedBackup.settings);
       await loadLocalData();
       setImportFeedback({
         kind: 'success',
