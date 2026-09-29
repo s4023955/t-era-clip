@@ -29,9 +29,26 @@ import {
   generateVendorFollowUpTemplate
 } from '../shared/templateGenerator';
 import type { TeraClipItem, TeraClipPriority, TeraClipStatus } from '../shared/types';
+import { TadtLogo } from '../shared/TadtLogo';
 
 const STATUS_OPTIONS: TeraClipStatus[] = ['inbox', 'todo', 'doing', 'waiting', 'done', 'archived'];
 const PRIORITY_OPTIONS: TeraClipPriority[] = ['low', 'medium', 'high', 'urgent'];
+
+const STATUS_LABELS: Record<TeraClipStatus, string> = {
+  inbox: 'Hộp thư',
+  todo: 'Cần làm',
+  doing: 'Đang làm',
+  waiting: 'Đang chờ',
+  done: 'Hoàn thành',
+  archived: 'Lưu trữ'
+};
+
+const PRIORITY_LABELS: Record<TeraClipPriority, string> = {
+  low: 'Thấp',
+  medium: 'Trung bình',
+  high: 'Cao',
+  urgent: 'Khẩn cấp'
+};
 
 type StatusFilter = TeraClipStatus | 'all';
 type PriorityFilter = TeraClipPriority | 'all';
@@ -46,17 +63,17 @@ type ItemDraft = {
 type ItemDrafts = Record<string, ItemDraft>;
 
 const REPORT_OPTIONS: { label: string; value: ReportType }[] = [
-  { label: 'Daily report', value: 'daily' },
-  { label: 'Follow-up list', value: 'followup' },
-  { label: 'Waiting list', value: 'waiting' },
-  { label: 'Completed list', value: 'completed' }
+  { label: 'Báo cáo hằng ngày', value: 'daily' },
+  { label: 'Danh sách theo dõi', value: 'followup' },
+  { label: 'Danh sách đang chờ', value: 'waiting' },
+  { label: 'Danh sách hoàn thành', value: 'completed' }
 ];
 
 const TEMPLATE_OPTIONS: { label: string; value: TemplateType }[] = [
-  { label: 'Vendor follow-up', value: 'vendor' },
-  { label: 'Internal follow-up', value: 'internal' },
-  { label: 'Leadership summary', value: 'leadership' },
-  { label: 'Meeting action list', value: 'meeting' }
+  { label: 'Theo dõi nhà cung cấp', value: 'vendor' },
+  { label: 'Theo dõi nội bộ', value: 'internal' },
+  { label: 'Tóm tắt cho lãnh đạo', value: 'leadership' },
+  { label: 'Đầu việc sau cuộc họp', value: 'meeting' }
 ];
 
 const sortNewestFirst = (items: TeraClipItem[]): TeraClipItem[] =>
@@ -71,10 +88,10 @@ const formatCreatedAt = (createdAt: string): string => {
   const date = new Date(createdAt);
 
   if (Number.isNaN(date.getTime())) {
-    return createdAt || 'Unknown date';
+    return createdAt || 'Không rõ thời gian';
   }
 
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString('vi-VN', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -87,7 +104,7 @@ const getErrorMessage = (error: unknown): string => {
     return error.message;
   }
 
-  return 'Unable to load captured items.';
+  return 'Không thể tải các nội dung đã lưu.';
 };
 
 const getOneOfficeErrorMessage = (error: unknown): string => {
@@ -95,7 +112,7 @@ const getOneOfficeErrorMessage = (error: unknown): string => {
     return error.message;
   }
 
-  return 'Unable to collect the 1Office discussion.';
+  return 'Không thể thu thập thảo luận từ 1Office.';
 };
 
 const generateReportText = (reportType: ReportType, items: TeraClipItem[]): string => {
@@ -127,6 +144,7 @@ const generateTemplateText = (templateType: TemplateType, items: TeraClipItem[])
 };
 
 export function PopupApp() {
+  const [activeView, setActiveView] = useState<'main' | 'capture'>('main');
   const [items, setItems] = useState<TeraClipItem[]>([]);
   const [itemDrafts, setItemDrafts] = useState<ItemDrafts>({});
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -197,7 +215,7 @@ export function PopupApp() {
       );
       return true;
     } catch (error) {
-      setUpdateErrorMessage(`Could not update ${errorContext}. ${getErrorMessage(error)}`);
+      setUpdateErrorMessage(`Không thể cập nhật ${errorContext}. ${getErrorMessage(error)}`);
       return false;
     } finally {
       setUpdatingItemIds((currentIds) => {
@@ -219,7 +237,7 @@ export function PopupApp() {
         status,
         updatedAt: new Date().toISOString()
       },
-      'item status'
+      'trạng thái'
     );
   };
 
@@ -234,7 +252,7 @@ export function PopupApp() {
         priority,
         updatedAt: new Date().toISOString()
       },
-      'item priority'
+      'mức ưu tiên'
     );
   };
 
@@ -244,7 +262,7 @@ export function PopupApp() {
     if (!trimmedTitle) {
       setValidationErrors((currentErrors) => ({
         ...currentErrors,
-        [item.id]: 'Title cannot be empty.'
+        [item.id]: 'Tiêu đề không được để trống.'
       }));
       return;
     }
@@ -272,7 +290,7 @@ export function PopupApp() {
         title: trimmedTitle,
         updatedAt: new Date().toISOString()
       },
-      'item title'
+      'tiêu đề'
     );
 
     if (wasSaved) {
@@ -297,7 +315,7 @@ export function PopupApp() {
         notes,
         updatedAt: new Date().toISOString()
       },
-      'item notes'
+      'ghi chú'
     );
 
     if (wasSaved) {
@@ -323,9 +341,9 @@ export function PopupApp() {
 
     try {
       await navigator.clipboard.writeText(reportText);
-      setReportFeedback('Copied to clipboard.');
+      setReportFeedback('Đã sao chép vào bộ nhớ tạm.');
     } catch (error) {
-      setReportFeedback(`Could not copy report. ${getErrorMessage(error)}`);
+      setReportFeedback(`Không thể sao chép báo cáo. ${getErrorMessage(error)}`);
     }
   };
 
@@ -341,9 +359,9 @@ export function PopupApp() {
 
     try {
       await navigator.clipboard.writeText(templateText);
-      setTemplateFeedback('Copied to clipboard.');
+      setTemplateFeedback('Đã sao chép vào bộ nhớ tạm.');
     } catch (error) {
-      setTemplateFeedback(`Could not copy template. ${getErrorMessage(error)}`);
+      setTemplateFeedback(`Không thể sao chép mẫu. ${getErrorMessage(error)}`);
     }
   };
 
@@ -455,8 +473,8 @@ export function PopupApp() {
     return matchesStatus && matchesPriority;
   });
   const itemCountLabel = isFiltering
-    ? `${filteredItems.length} of ${items.length} ${items.length === 1 ? 'item' : 'items'}`
-    : `${items.length} ${items.length === 1 ? 'captured item' : 'captured items'}`;
+    ? `${filteredItems.length}/${items.length} nội dung`
+    : `${items.length} nội dung đã lưu`;
   const oneOfficeAttachmentCount =
     oneOfficeResult?.comments.reduce((count, comment) => count + comment.attachments.length, 0) ?? 0;
   const oneOfficeRootCount = oneOfficeResult?.collection.loadedRootCommentCount ?? 0;
@@ -472,13 +490,171 @@ export function PopupApp() {
     ? Math.max(...projectInventory.tasks.map((task) => task.depth), 0)
     : 0;
 
+  if (activeView === 'main') {
+    return (
+      <div className="flex h-[570px] w-[400px] flex-col overflow-hidden bg-slate-50 text-slate-900">
+        <header className="border-b border-slate-200 bg-white px-5 py-4">
+          <div className="flex items-center gap-3">
+            <TadtLogo className="h-12 w-16 object-contain object-left" />
+            <div className="min-w-0 border-l border-slate-200 pl-3">
+              <h1 className="text-lg font-bold tracking-tight text-blue-900">T-eraClip</h1>
+              <p className="text-xs text-slate-500">Xuất thảo luận 1Office</p>
+            </div>
+          </div>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-800 via-indigo-700 to-violet-700 p-5 text-white shadow-lg shadow-blue-900/15">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200">
+              Trang 1Office hiện tại
+            </p>
+            <h2 className="mt-2 truncate text-lg font-semibold" title={oneOfficeTab?.title}>
+              {oneOfficeResult?.entity.name || oneOfficeTab?.title || 'Chưa nhận diện trang hỗ trợ'}
+            </h2>
+            <p className="mt-2 text-xs leading-5 text-blue-100">
+              Thu thập nhanh trang đang mở hoặc toàn bộ công việc trong dự án.
+            </p>
+
+            {oneOfficeTab ? (
+              <div className="mt-4 grid gap-2">
+                <button
+                  className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-blue-800 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isCollectingOneOffice}
+                  onClick={() => void handleCollectOneOffice()}
+                  type="button"
+                >
+                  {isCollectingOneOffice ? 'Đang thu thập...' : 'Thu thập thảo luận trang hiện tại'}
+                </button>
+                {isOneOfficeProjectPage && (
+                  <button
+                    className="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isCollectingProjectInventory || isCollectingOneOffice}
+                    onClick={() => void handleCollectProjectInventory()}
+                    type="button"
+                  >
+                    {isCollectingProjectInventory
+                      ? 'Đang kiểm tra danh sách công việc...'
+                      : 'Kiểm tra danh sách công việc dự án'}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-white/20 bg-white/10 p-3 text-xs leading-5 text-blue-50">
+                Hãy mở một trang dự án hoặc công việc trên 1Office, sau đó mở lại T-eraClip.
+              </div>
+            )}
+          </section>
+
+          {isCollectingOneOffice && (
+            <section className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800">
+              Đã tải {oneOfficeProgress?.loadedRootCommentCount ?? 0}
+              {oneOfficeProgress?.expectedRootCommentCount
+                ? `/${oneOfficeProgress.expectedRootCommentCount}`
+                : ''}{' '}
+              bình luận gốc.
+            </section>
+          )}
+
+          {oneOfficeError && (
+            <section className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-xs leading-5 text-red-700">
+              {oneOfficeError}
+            </section>
+          )}
+
+          {oneOfficeResult && (
+            <section className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-blue-50 p-2">
+                  <p className="text-lg font-bold text-blue-800">{oneOfficeRootCount}</p>
+                  <p className="text-[10px] text-slate-500">Bình luận</p>
+                </div>
+                <div className="rounded-lg bg-indigo-50 p-2">
+                  <p className="text-lg font-bold text-indigo-700">{oneOfficeReplyCount}</p>
+                  <p className="text-[10px] text-slate-500">Phản hồi</p>
+                </div>
+                <div className="rounded-lg bg-violet-50 p-2">
+                  <p className="text-lg font-bold text-violet-700">{oneOfficeAttachmentCount}</p>
+                  <p className="text-[10px] text-slate-500">Tệp đính kèm</p>
+                </div>
+              </div>
+              <p className={`mt-3 text-xs font-medium ${oneOfficeResult.collection.complete ? 'text-emerald-700' : 'text-amber-700'}`}>
+                {oneOfficeResult.collection.complete
+                  ? 'Đã thu thập đầy đủ.'
+                  : 'Dữ liệu chưa đầy đủ, cần kiểm tra cảnh báo trước khi xuất.'}
+              </p>
+              {visibleOneOfficeWarnings.length > 0 && (
+                <ul className="mt-2 space-y-1 text-[11px] leading-4 text-amber-700">
+                  {visibleOneOfficeWarnings.map((warning) => <li key={warning}>• {warning}</li>)}
+                </ul>
+              )}
+              <button
+                className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:opacity-60"
+                disabled={isOpeningOneOfficeReview}
+                onClick={() => void handleOpenOneOfficeReview()}
+                type="button"
+              >
+                {isOpeningOneOfficeReview ? 'Đang mở bản xem trước...' : 'Xem trước và xuất dữ liệu'}
+              </button>
+            </section>
+          )}
+
+          {projectInventory && (
+            <section className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Danh sách công việc dự án</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {projectInventory.collection.loadedTaskCount} công việc, tối đa {inventoryMaxDepth} cấp
+                  </p>
+                </div>
+                <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${projectInventory.collection.complete ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {projectInventory.collection.complete ? 'Đầy đủ' : 'Cần kiểm tra'}
+                </span>
+              </div>
+              <button
+                className="mt-3 w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:from-cyan-600 hover:to-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isOpeningProjectReview || !projectInventory.collection.complete}
+                onClick={() => void handleOpenProjectReview()}
+                type="button"
+              >
+                {isOpeningProjectReview ? 'Đang mở trang thu thập...' : 'Thu thập toàn bộ thảo luận dự án'}
+              </button>
+              <p className="mt-2 text-[10px] leading-4 text-slate-500">
+                Tiến độ và danh sách chi tiết sẽ mở ở một trang riêng.
+              </p>
+            </section>
+          )}
+
+          <button
+            className="mt-3 flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md"
+            onClick={() => setActiveView('capture')}
+            type="button"
+          >
+            <span>
+              <span className="block text-sm font-semibold text-slate-900">Capture</span>
+              <span className="mt-1 block text-xs text-slate-500">Mở các công cụ lưu và quản lý nội dung cũ</span>
+            </span>
+            <span className="text-lg text-blue-700">→</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-[520px] w-96 flex-col overflow-hidden bg-slate-950 text-slate-100">
       <div className="border-b border-slate-800 p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">T-eraClip</h1>
-            <p className="mt-1 text-sm text-slate-400">Clip anything. Turn it into action.</p>
+            <button
+              className="text-xs font-medium text-blue-300 hover:text-blue-200"
+              onClick={() => setActiveView('main')}
+              type="button"
+            >
+              ← Quay lại menu chính
+            </button>
+            <h1 className="mt-2 text-2xl font-semibold">Capture</h1>
+            <p className="mt-1 text-sm text-slate-400">Lưu nội dung và chuyển thành đầu việc.</p>
           </div>
 
           <button
@@ -489,13 +665,13 @@ export function PopupApp() {
             }}
             type="button"
           >
-            Refresh
+            Làm mới
           </button>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <label className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
-            Status
+            Trạng thái
             <select
               className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-medium capitalize text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500"
               onChange={(event) => {
@@ -503,17 +679,17 @@ export function PopupApp() {
               }}
               value={statusFilter}
             >
-              <option value="all">All</option>
+              <option value="all">Tất cả</option>
               {STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {STATUS_LABELS[status]}
                 </option>
               ))}
             </select>
           </label>
 
           <label className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
-            Priority
+            Ưu tiên
             <select
               className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-medium capitalize text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500"
               onChange={(event) => {
@@ -521,10 +697,10 @@ export function PopupApp() {
               }}
               value={priorityFilter}
             >
-              <option value="all">All</option>
+              <option value="all">Tất cả</option>
               {PRIORITY_OPTIONS.map((priority) => (
                 <option key={priority} value={priority}>
-                  {priority}
+                  {PRIORITY_LABELS[priority]}
                 </option>
               ))}
             </select>
@@ -539,7 +715,7 @@ export function PopupApp() {
               }}
               type="button"
             >
-              Clear filters
+              Xóa bộ lọc
             </button>
           )}
         </div>
@@ -549,7 +725,7 @@ export function PopupApp() {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {oneOfficeTab && (
-          <section className="mb-4 rounded-md border border-cyan-900 bg-cyan-950/30 p-4">
+          <section className="hidden">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-cyan-100">1Office discussion</h2>
@@ -692,16 +868,16 @@ export function PopupApp() {
         <section className="mb-4 rounded-md border border-slate-800 bg-slate-900 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-slate-100">Reports</h2>
+              <h2 className="text-sm font-semibold text-slate-100">Báo cáo</h2>
               <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                Reports use all saved items, not just filtered results.
+                Báo cáo sử dụng toàn bộ nội dung đã lưu, không chỉ kết quả đang lọc.
               </p>
             </div>
           </div>
 
           <div className="mt-3 flex flex-wrap items-end gap-2">
             <label className="min-w-0 flex-1 text-[11px] font-medium text-slate-400">
-              Report type
+              Loại báo cáo
               <select
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs font-medium text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500"
                 onChange={(event) => {
@@ -724,7 +900,7 @@ export function PopupApp() {
               onClick={handleGenerateReport}
               type="button"
             >
-              Generate
+              Tạo báo cáo
             </button>
           </div>
 
@@ -739,7 +915,7 @@ export function PopupApp() {
               <div className="mt-2 flex items-center justify-between gap-3">
                 <p
                   className={`min-h-4 text-[11px] ${
-                    reportFeedback.startsWith('Could not') ? 'text-red-200' : 'text-emerald-300'
+                    reportFeedback.startsWith('Không thể') ? 'text-red-200' : 'text-emerald-300'
                   }`}
                 >
                   {reportFeedback}
@@ -752,7 +928,7 @@ export function PopupApp() {
                   }}
                   type="button"
                 >
-                  Copy
+                  Sao chép
                 </button>
               </div>
             </>
@@ -760,14 +936,14 @@ export function PopupApp() {
         </section>
 
         <section className="mb-4 rounded-md border border-slate-800 bg-slate-900 p-4">
-          <h2 className="text-sm font-semibold text-slate-100">Templates</h2>
+          <h2 className="text-sm font-semibold text-slate-100">Mẫu tin nhắn</h2>
           <p className="mt-1 text-[11px] leading-4 text-slate-500">
-            Templates use all saved items, not just filtered results.
+            Mẫu tin nhắn sử dụng toàn bộ nội dung đã lưu, không chỉ kết quả đang lọc.
           </p>
 
           <div className="mt-3 flex flex-wrap items-end gap-2">
             <label className="min-w-0 flex-1 text-[11px] font-medium text-slate-400">
-              Template type
+              Loại mẫu
               <select
                 className="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs font-medium text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500"
                 onChange={(event) => {
@@ -790,7 +966,7 @@ export function PopupApp() {
               onClick={handleGenerateTemplate}
               type="button"
             >
-              Generate
+              Tạo mẫu
             </button>
           </div>
 
@@ -805,7 +981,7 @@ export function PopupApp() {
               <div className="mt-2 flex items-center justify-between gap-3">
                 <p
                   className={`min-h-4 text-[11px] ${
-                    templateFeedback.startsWith('Could not') ? 'text-red-200' : 'text-emerald-300'
+                    templateFeedback.startsWith('Không thể') ? 'text-red-200' : 'text-emerald-300'
                   }`}
                 >
                   {templateFeedback}
@@ -818,7 +994,7 @@ export function PopupApp() {
                   }}
                   type="button"
                 >
-                  Copy
+                  Sao chép
                 </button>
               </div>
             </>
@@ -827,24 +1003,24 @@ export function PopupApp() {
 
         {isLoading ? (
           <div className="rounded-md border border-slate-800 bg-slate-900 p-4 text-sm text-slate-300">
-            Loading captured items...
+            Đang tải nội dung đã lưu...
           </div>
         ) : errorMessage ? (
           <div className="rounded-md border border-red-900 bg-red-950/40 p-4">
-            <p className="text-sm font-medium text-red-100">Could not load captured items.</p>
+            <p className="text-sm font-medium text-red-100">Không thể tải nội dung đã lưu.</p>
             <p className="mt-2 text-xs text-red-200">{errorMessage}</p>
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-md border border-slate-800 bg-slate-900 p-4">
-            <p className="text-sm font-medium text-slate-100">No captured items yet.</p>
+            <p className="text-sm font-medium text-slate-100">Chưa có nội dung nào được lưu.</p>
             <p className="mt-2 text-xs leading-5 text-slate-400">
-              Select text on any webpage, right-click, and choose Save to T-eraClip.
+              Bôi đen nội dung trên trang web, nhấp chuột phải và chọn Lưu vào T-eraClip.
             </p>
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="rounded-md border border-slate-800 bg-slate-900 p-4">
-            <p className="text-sm font-medium text-slate-100">No items match the selected filters.</p>
-            <p className="mt-2 text-xs leading-5 text-slate-400">Clear filters to show all captured items.</p>
+            <p className="text-sm font-medium text-slate-100">Không có nội dung phù hợp với bộ lọc.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">Xóa bộ lọc để hiển thị toàn bộ nội dung.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -867,7 +1043,7 @@ export function PopupApp() {
                 <article className="rounded-md border border-slate-800 bg-slate-900 p-4" key={item.id}>
                   <div className="flex items-start justify-between gap-3">
                     <label className="min-w-0 flex-1 text-[11px] font-medium text-slate-400">
-                      Title
+                      Tiêu đề
                       <div className="mt-1 flex gap-2">
                         <input
                           className="min-w-0 flex-1 rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm font-semibold leading-5 text-slate-100 outline-none transition placeholder:text-slate-600 hover:border-slate-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
@@ -891,7 +1067,7 @@ export function PopupApp() {
                           }}
                           type="button"
                         >
-                          Save
+                          Lưu
                         </button>
                       </div>
                     </label>
@@ -913,7 +1089,7 @@ export function PopupApp() {
 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <label className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
-                      Status
+                      Trạng thái
                       <select
                         className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-medium capitalize text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={isUpdating}
@@ -924,14 +1100,14 @@ export function PopupApp() {
                       >
                         {STATUS_OPTIONS.map((status) => (
                           <option key={status} value={status}>
-                            {status}
+                            {STATUS_LABELS[status]}
                           </option>
                         ))}
                       </select>
                     </label>
 
                     <label className="flex items-center gap-2 text-[11px] font-medium text-slate-400">
-                      Priority
+                      Ưu tiên
                       <select
                         className="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[11px] font-medium capitalize text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={isUpdating}
@@ -942,7 +1118,7 @@ export function PopupApp() {
                       >
                         {PRIORITY_OPTIONS.map((priority) => (
                           <option key={priority} value={priority}>
-                            {priority}
+                            {PRIORITY_LABELS[priority]}
                           </option>
                         ))}
                       </select>
@@ -950,7 +1126,7 @@ export function PopupApp() {
                   </div>
 
                   <label className="mt-3 block text-[11px] font-medium text-slate-400">
-                    Notes
+                    Ghi chú
                     <textarea
                       className="mt-1 h-16 w-full resize-none rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs leading-5 text-slate-100 outline-none transition placeholder:text-slate-600 hover:border-slate-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={isUpdating}
@@ -963,7 +1139,7 @@ export function PopupApp() {
                           }
                         }));
                       }}
-                      placeholder="Add notes..."
+                      placeholder="Thêm ghi chú..."
                       value={draft.notes}
                     />
                   </label>
@@ -977,7 +1153,7 @@ export function PopupApp() {
                       }}
                       type="button"
                     >
-                      Save notes
+                      Lưu ghi chú
                     </button>
                   </div>
                 </article>

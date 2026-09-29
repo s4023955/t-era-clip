@@ -9,13 +9,14 @@ import {
 } from '../oneoffice/export/xlsx';
 import { getOneOfficeReview } from '../oneoffice/reviewSession';
 import type { OneOfficeComment, OneOfficeDiscussionExport } from '../oneoffice/types';
+import { TadtLogo } from '../shared/TadtLogo';
 
 const DUPLICATE_DIAGNOSTIC_PATTERN = /^Ignored \d+ duplicate comment ID\(s\)/;
 type ExportFormat = 'json' | 'xlsx';
 
 const formatTimestamp = (comment: OneOfficeComment): string => {
   if (!comment.createdAtIso) {
-    return comment.createdAtRaw || 'Unknown time';
+    return comment.createdAtRaw || 'Không rõ thời gian';
   }
 
   const parsed = new Date(comment.createdAtIso);
@@ -23,14 +24,14 @@ const formatTimestamp = (comment: OneOfficeComment): string => {
     return comment.createdAtRaw;
   }
 
-  return parsed.toLocaleString(undefined, {
+  return parsed.toLocaleString('vi-VN', {
     dateStyle: 'medium',
     timeStyle: 'medium',
   });
 };
 
 const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'Unable to load the temporary review data.';
+  error instanceof Error ? error.message : 'Không thể tải dữ liệu xem trước tạm thời.';
 
 export function ReviewApp() {
   const [result, setResult] = useState<OneOfficeDiscussionExport | null>(null);
@@ -46,7 +47,7 @@ export function ReviewApp() {
     void getOneOfficeReview()
       .then((reviewResult) => {
         if (!reviewResult) {
-          setErrorMessage('No temporary 1Office review is available. Collect the discussion again.');
+          setErrorMessage('Không có dữ liệu xem trước 1Office. Hãy thu thập lại thảo luận.');
           return;
         }
         setResult(reviewResult);
@@ -88,25 +89,25 @@ export function ReviewApp() {
         exportFormat === 'xlsx'
           ? await downloadOneOfficeXlsx(result)
           : downloadOneOfficeJson(result);
-      setDownloadFeedback(`Downloaded ${filename}`);
+      setDownloadFeedback(`Đã tải xuống ${filename}`);
       setIsConfirming(false);
     } catch (error) {
-      setDownloadFeedback(`Download failed. ${getErrorMessage(error)}`);
+      setDownloadFeedback(`Tải xuống thất bại. ${getErrorMessage(error)}`);
     } finally {
       setIsDownloading(false);
     }
   };
 
   if (isLoading) {
-    return <main className="mx-auto max-w-5xl p-8 text-sm text-slate-300">Loading preview...</main>;
+    return <main className="mx-auto max-w-5xl p-8 text-sm text-slate-600">Đang tải bản xem trước...</main>;
   }
 
   if (errorMessage || !result) {
     return (
       <main className="mx-auto max-w-3xl p-8">
-        <section className="rounded-xl border border-red-900 bg-red-950/30 p-6">
-          <h1 className="text-xl font-semibold text-red-100">Preview unavailable</h1>
-          <p className="mt-3 text-sm leading-6 text-red-200">{errorMessage}</p>
+        <section className="rounded-2xl border border-red-200 bg-red-50 p-6">
+          <h1 className="text-xl font-semibold text-red-800">Không thể mở bản xem trước</h1>
+          <p className="mt-3 text-sm leading-6 text-red-700">{errorMessage}</p>
         </section>
       </main>
     );
@@ -121,74 +122,75 @@ export function ReviewApp() {
 
   return (
     <main className="mx-auto max-w-5xl p-6 sm:p-8">
-      <header className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+      <header className="overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-indigo-800 to-violet-700 p-6 text-white shadow-xl shadow-blue-900/15">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
-              1Office discussion preview
+            <TadtLogo className="h-14 w-24 rounded-lg bg-white object-contain p-1" />
+            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+              Xem trước thảo luận 1Office
             </p>
-            <h1 className="mt-2 break-words text-2xl font-semibold text-slate-100">
+            <h1 className="mt-2 break-words text-3xl font-semibold text-white">
               {result.entity.name || `${result.entity.type} ${result.entity.internalId}`}
             </h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <p className="mt-1 text-sm text-blue-100">
               {result.entity.code ? `${result.entity.code} · ` : ''}
-              {result.entity.type === 'project' ? 'Project' : 'Task'}
+              {result.entity.type === 'project' ? 'Dự án' : 'Công việc'}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <button
-              className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+              className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-blue-800 transition hover:bg-blue-50"
               onClick={() => openExportConfirmation('xlsx')}
               type="button"
             >
-              Export Excel
+              Xuất Excel
             </button>
             <button
-              className="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800"
+              className="rounded-xl border border-white/40 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
               onClick={() => openExportConfirmation('json')}
               type="button"
             >
-              Export JSON
+              Xuất JSON
             </button>
           </div>
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <p className="text-2xl font-semibold text-slate-100">{rootCount}</p>
-            <p className="mt-1 text-xs text-slate-500">Root comments</p>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4">
+            <p className="text-2xl font-semibold text-white">{rootCount}</p>
+            <p className="mt-1 text-xs text-blue-100">Bình luận gốc</p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <p className="text-2xl font-semibold text-slate-100">{replyCount}</p>
-            <p className="mt-1 text-xs text-slate-500">Replies</p>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4">
+            <p className="text-2xl font-semibold text-white">{replyCount}</p>
+            <p className="mt-1 text-xs text-blue-100">Phản hồi</p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <p className="text-2xl font-semibold text-slate-100">{attachmentCount}</p>
-            <p className="mt-1 text-xs text-slate-500">Attachments</p>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4">
+            <p className="text-2xl font-semibold text-white">{attachmentCount}</p>
+            <p className="mt-1 text-xs text-blue-100">Tệp đính kèm</p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4">
             <p
               className={`text-sm font-semibold ${
-                result.collection.complete ? 'text-emerald-300' : 'text-amber-300'
+                result.collection.complete ? 'text-emerald-200' : 'text-amber-200'
               }`}
             >
-              {result.collection.complete ? 'Complete' : 'Incomplete'}
+              {result.collection.complete ? 'Đầy đủ' : 'Chưa đầy đủ'}
             </p>
-            <p className="mt-2 text-xs text-slate-500">
-              {result.collection.loadMoreClicks} load-more actions
+            <p className="mt-2 text-xs text-blue-100">
+              {result.collection.loadMoreClicks} lần tải thêm
             </p>
           </div>
         </div>
 
         <dl className="mt-6 grid gap-3 text-xs sm:grid-cols-2">
           <div>
-            <dt className="text-slate-500">Captured</dt>
-            <dd className="mt-1 text-slate-300">{new Date(result.capturedAt).toLocaleString()}</dd>
+            <dt className="text-blue-200">Thời điểm thu thập</dt>
+            <dd className="mt-1 text-white">{new Date(result.capturedAt).toLocaleString('vi-VN')}</dd>
           </div>
           <div className="min-w-0">
-            <dt className="text-slate-500">Source</dt>
-            <dd className="mt-1 truncate text-slate-300" title={result.entity.url}>
+            <dt className="text-blue-200">Nguồn</dt>
+            <dd className="mt-1 truncate text-white" title={result.entity.url}>
               {result.entity.url}
             </dd>
           </div>
@@ -196,9 +198,9 @@ export function ReviewApp() {
       </header>
 
       {actionableWarnings.length > 0 && (
-        <section className="mt-5 rounded-xl border border-amber-800 bg-amber-950/30 p-5">
-          <h2 className="text-sm font-semibold text-amber-200">Review warnings</h2>
-          <ul className="mt-3 space-y-2 text-sm text-amber-100">
+        <section className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <h2 className="text-sm font-semibold text-amber-800">Cảnh báo cần kiểm tra</h2>
+          <ul className="mt-3 space-y-2 text-sm text-amber-700">
             {actionableWarnings.map((warning) => (
               <li key={warning}>- {warning}</li>
             ))}
@@ -207,9 +209,9 @@ export function ReviewApp() {
       )}
 
       {diagnostics.length > 0 && (
-        <details className="mt-5 rounded-xl border border-slate-800 bg-slate-900 p-5">
-          <summary className="cursor-pointer text-sm font-medium text-slate-300">
-            Collection diagnostics ({diagnostics.length})
+        <details className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <summary className="cursor-pointer text-sm font-medium text-slate-700">
+            Thông tin kỹ thuật ({diagnostics.length})
           </summary>
           <ul className="mt-3 space-y-2 text-xs text-slate-500">
             {diagnostics.map((diagnostic) => (
@@ -222,32 +224,32 @@ export function ReviewApp() {
       <section className="mt-5">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-100">Discussion</h2>
-            <p className="mt-1 text-xs text-slate-500">Source order is preserved.</p>
+            <h2 className="text-lg font-semibold text-slate-900">Nội dung thảo luận</h2>
+            <p className="mt-1 text-xs text-slate-500">Giữ nguyên thứ tự từ nguồn.</p>
           </div>
-          <p className="text-xs text-slate-500">{comments.length} total entries</p>
+          <p className="text-xs text-slate-500">Tổng cộng {comments.length} mục</p>
         </div>
 
         {comments.length === 0 ? (
-          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900 p-8 text-center">
-            <p className="text-sm text-slate-300">This task has no discussion.</p>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <p className="text-sm text-slate-600">Công việc này chưa có thảo luận.</p>
           </div>
         ) : (
           <div className="mt-4 space-y-3">
             {comments.map((comment) => (
               <article
-                className="rounded-xl border border-slate-800 bg-slate-900 p-4"
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 key={comment.id}
                 style={{ marginLeft: `${Math.min(comment.depth, 4) * 24}px` }}
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-cyan-200">
-                      {comment.authorName || 'Unknown author'}
+                    <p className="text-sm font-semibold text-blue-800">
+                      {comment.authorName || 'Không rõ tác giả'}
                     </p>
                     {comment.depth > 0 && (
-                      <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
-                        Reply to {comment.parentId}
+                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700">
+                        Phản hồi {comment.parentId}
                       </span>
                     )}
                   </div>
@@ -255,22 +257,22 @@ export function ReviewApp() {
                 </div>
 
                 {comment.contentText ? (
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-200">
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">
                     {comment.contentText}
                   </p>
                 ) : (
-                  <p className="mt-3 text-sm italic text-slate-500">No text content</p>
+                  <p className="mt-3 text-sm italic text-slate-500">Không có nội dung văn bản</p>
                 )}
 
                 {comment.attachments.length > 0 && (
-                  <div className="mt-3 border-t border-slate-800 pt-3">
+                  <div className="mt-3 border-t border-slate-200 pt-3">
                     <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                      Attachments
+                      Tệp đính kèm
                     </p>
-                    <ul className="mt-2 space-y-1 text-xs text-slate-300">
+                    <ul className="mt-2 space-y-1 text-xs text-slate-600">
                       {comment.attachments.map((attachment) => (
                         <li key={`${comment.id}-${attachment.index}`}>
-                          {attachment.name || 'Unnamed attachment'}
+                          {attachment.name || 'Tệp không có tên'}
                           {attachment.sizeText ? ` (${attachment.sizeText})` : ''}
                         </li>
                       ))}
@@ -284,46 +286,46 @@ export function ReviewApp() {
       </section>
 
       {isConfirming && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
           <section
             aria-labelledby="confirm-export-title"
             aria-modal="true"
-            className="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
             role="dialog"
           >
-            <h2 className="text-lg font-semibold text-slate-100" id="confirm-export-title">
-              Confirm {exportFormat === 'xlsx' ? 'Excel' : 'JSON'} export
+            <h2 className="text-lg font-semibold text-slate-900" id="confirm-export-title">
+              Xác nhận xuất {exportFormat === 'xlsx' ? 'Excel' : 'JSON'}
             </h2>
-            <p className="mt-3 break-all text-sm leading-6 text-slate-300">{filename}</p>
+            <p className="mt-3 break-all text-sm leading-6 text-slate-700">{filename}</p>
             <p className="mt-2 text-xs leading-5 text-slate-500">
               {exportFormat === 'xlsx'
-                ? 'The workbook contains Entity, Discussion, and Attachments sheets. It includes discussion text, hierarchy, timestamps, mentions, and attachment metadata. Original attachment files are not included.'
-                : 'The JSON contains discussion text, authors, timestamps, mentions, attachment metadata, hierarchy, source URL, and collection diagnostics. Original attachment files are not included.'}
+                ? 'File gồm các sheet Đối tượng, Thảo luận và Tệp đính kèm. Dữ liệu gồm nội dung, cấu trúc phản hồi, thời gian, người được nhắc đến và thông tin tệp. File đính kèm gốc chưa được tải kèm.'
+                : 'File JSON gồm nội dung, tác giả, thời gian, người được nhắc đến, thông tin tệp, cấu trúc phản hồi, URL nguồn và thông tin thu thập. File đính kèm gốc chưa được tải kèm.'}
             </p>
 
             {!result.collection.complete && (
-              <label className="mt-4 flex items-start gap-3 rounded-md border border-amber-800 bg-amber-950/30 p-3 text-sm text-amber-100">
+              <label className="mt-4 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 <input
                   checked={incompleteAcknowledged}
                   className="mt-1"
                   onChange={(event) => setIncompleteAcknowledged(event.target.checked)}
                   type="checkbox"
                 />
-                I understand that this collection is incomplete and still want to export it.
+                Tôi hiểu dữ liệu thu thập chưa đầy đủ và vẫn muốn xuất phần dữ liệu hiện có.
               </label>
             )}
 
             <div className="mt-6 flex justify-end gap-3">
               <button
-                className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                 disabled={isDownloading}
                 onClick={() => setIsConfirming(false)}
                 type="button"
               >
-                Cancel
+                Hủy
               </button>
               <button
-                className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={
                   isDownloading || (!result.collection.complete && !incompleteAcknowledged)
                 }
@@ -333,8 +335,8 @@ export function ReviewApp() {
                 type="button"
               >
                 {isDownloading
-                  ? 'Preparing...'
-                  : `Download ${exportFormat === 'xlsx' ? 'Excel' : 'JSON'}`}
+                  ? 'Đang chuẩn bị...'
+                  : `Tải file ${exportFormat === 'xlsx' ? 'Excel' : 'JSON'}`}
               </button>
             </div>
           </section>
@@ -342,7 +344,7 @@ export function ReviewApp() {
       )}
 
       {downloadFeedback && (
-        <p className="fixed bottom-5 right-5 rounded-md border border-emerald-800 bg-emerald-950 px-4 py-3 text-sm text-emerald-200 shadow-xl">
+        <p className="fixed bottom-5 right-5 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 shadow-xl">
           {downloadFeedback}
         </p>
       )}

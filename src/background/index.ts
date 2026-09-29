@@ -2,7 +2,7 @@ import { addItem } from '../shared/storage';
 import type { TeraClipItem } from '../shared/types';
 
 const MENU_ID = 'save-to-teraclip';
-const MENU_TITLE = 'Save to T-eraClip';
+const MENU_TITLE = 'Lưu vào T-eraClip';
 
 const chromeApi = typeof globalThis !== 'undefined' ? (globalThis as any).chrome : undefined;
 

@@ -79,23 +79,23 @@ const isTeraClipSettings = (value: unknown): value is TeraClipSettings =>
 
 const parseBackup = (value: unknown): ImportedBackup => {
   if (!isRecord(value)) {
-    throw new Error('Backup must contain a JSON object.');
+    throw new Error('Bản sao lưu phải là một đối tượng JSON.');
   }
 
   if (!Array.isArray(value.items)) {
-    throw new Error('Backup must contain an items array.');
+    throw new Error('Bản sao lưu phải có danh sách items.');
   }
 
   const invalidItemIndex = value.items.findIndex((item) => !isTeraClipItem(item));
   if (invalidItemIndex !== -1) {
-    throw new Error(`Backup item ${invalidItemIndex + 1} is missing required fields or has invalid values.`);
+    throw new Error(`Mục số ${invalidItemIndex + 1} thiếu trường bắt buộc hoặc có giá trị không hợp lệ.`);
   }
 
   let importedSettings: TeraClipSettings = { ...DEFAULT_SETTINGS };
 
   if (value.settings !== undefined) {
     if (!isTeraClipSettings(value.settings)) {
-      throw new Error('Backup settings are invalid.');
+      throw new Error('Cài đặt trong bản sao lưu không hợp lệ.');
     }
 
     importedSettings = value.settings;
@@ -108,7 +108,7 @@ const parseBackup = (value: unknown): ImportedBackup => {
 };
 
 const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'An unexpected error occurred.';
+  error instanceof Error ? error.message : 'Đã xảy ra lỗi không xác định.';
 
 function FeedbackMessage({ feedback }: { feedback: Feedback | null }) {
   if (!feedback) {
@@ -143,7 +143,7 @@ export function OptionsApp() {
     } catch (error) {
       setSettingsFeedback({
         kind: 'error',
-        message: `Could not load local data. ${getErrorMessage(error)}`
+        message: `Không thể tải dữ liệu cục bộ. ${getErrorMessage(error)}`
       });
     } finally {
       setIsLoading(false);
@@ -164,12 +164,12 @@ export function OptionsApp() {
 
     try {
       await saveSettings(nextSettings);
-      setSettingsFeedback({ kind: 'success', message: 'Default report language saved.' });
+      setSettingsFeedback({ kind: 'success', message: 'Đã lưu ngôn ngữ báo cáo mặc định.' });
     } catch (error) {
       setSettings(previousSettings);
       setSettingsFeedback({
         kind: 'error',
-        message: `Could not save settings. ${getErrorMessage(error)}`
+        message: `Không thể lưu cài đặt. ${getErrorMessage(error)}`
       });
     } finally {
       setIsSavingSettings(false);
@@ -200,11 +200,11 @@ export function OptionsApp() {
       downloadLink.remove();
       URL.revokeObjectURL(downloadUrl);
 
-      setExportFeedback({ kind: 'success', message: `Exported ${items.length} local item(s).` });
+      setExportFeedback({ kind: 'success', message: `Đã xuất ${items.length} nội dung cục bộ.` });
     } catch (error) {
       setExportFeedback({
         kind: 'error',
-        message: `Could not export local data. ${getErrorMessage(error)}`
+        message: `Không thể xuất dữ liệu cục bộ. ${getErrorMessage(error)}`
       });
     }
   };
@@ -216,11 +216,11 @@ export function OptionsApp() {
       const parsedJson: unknown = JSON.parse(await file.text());
       const importedBackup = parseBackup(parsedJson);
       const confirmed = window.confirm(
-        `Import ${importedBackup.items.length} item(s)? This will replace existing local T-eraClip data in this browser.`
+        `Nhập ${importedBackup.items.length} nội dung? Thao tác này sẽ thay thế dữ liệu T-eraClip hiện có trên trình duyệt.`
       );
 
       if (!confirmed) {
-        setImportFeedback({ kind: 'error', message: 'Import cancelled. No local data was changed.' });
+        setImportFeedback({ kind: 'error', message: 'Đã hủy nhập. Dữ liệu cục bộ không thay đổi.' });
         return;
       }
 
@@ -228,14 +228,14 @@ export function OptionsApp() {
       await loadLocalData();
       setImportFeedback({
         kind: 'success',
-        message: `Imported ${importedBackup.items.length} item(s) and replaced existing local data.`
+        message: `Đã nhập ${importedBackup.items.length} nội dung và thay thế dữ liệu cục bộ hiện có.`
       });
       setSettingsFeedback(null);
       setClearFeedback(null);
     } catch (error) {
       setImportFeedback({
         kind: 'error',
-        message: `Import failed. No data was imported. ${getErrorMessage(error)}`
+        message: `Nhập dữ liệu thất bại. Không có dữ liệu nào được thay đổi. ${getErrorMessage(error)}`
       });
     } finally {
       if (fileInputRef.current) {
@@ -247,8 +247,8 @@ export function OptionsApp() {
   const handleClear = async () => {
     setClearFeedback(null);
 
-    if (!window.confirm('Clear all local T-eraClip items and settings from this browser?')) {
-      setClearFeedback({ kind: 'error', message: 'Clear cancelled. No local data was changed.' });
+    if (!window.confirm('Xóa toàn bộ nội dung và cài đặt T-eraClip cục bộ trên trình duyệt này?')) {
+      setClearFeedback({ kind: 'error', message: 'Đã hủy xóa. Dữ liệu cục bộ không thay đổi.' });
       return;
     }
 
@@ -256,13 +256,13 @@ export function OptionsApp() {
       await clearAllLocalData();
       setItemCount(0);
       setSettings({ ...DEFAULT_SETTINGS });
-      setClearFeedback({ kind: 'success', message: 'All local T-eraClip data was cleared.' });
+      setClearFeedback({ kind: 'success', message: 'Đã xóa toàn bộ dữ liệu T-eraClip cục bộ.' });
       setSettingsFeedback(null);
       setImportFeedback(null);
     } catch (error) {
       setClearFeedback({
         kind: 'error',
-        message: `Could not clear local data. ${getErrorMessage(error)}`
+        message: `Không thể xóa dữ liệu cục bộ. ${getErrorMessage(error)}`
       });
     }
   };
@@ -272,17 +272,17 @@ export function OptionsApp() {
       <div className="mx-auto max-w-3xl">
         <header>
           <div className="flex flex-wrap items-baseline gap-3">
-            <h1 className="text-3xl font-semibold">T-eraClip Options</h1>
-            <span className="text-sm text-slate-500">Version {APP_VERSION}</span>
+            <h1 className="text-3xl font-semibold">Cài đặt T-eraClip</h1>
+            <span className="text-sm text-slate-500">Phiên bản {APP_VERSION}</span>
           </div>
-          <p className="mt-2 text-sm text-slate-400">Data is stored locally in this browser.</p>
+          <p className="mt-2 text-sm text-slate-400">Dữ liệu được lưu cục bộ trên trình duyệt này.</p>
         </header>
 
         <div className="mt-8 space-y-6">
           <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-lg font-medium">Settings</h2>
+            <h2 className="text-lg font-medium">Cài đặt</h2>
             <label className="mt-4 block max-w-sm text-sm font-medium text-slate-300">
-              Default report language
+              Ngôn ngữ báo cáo mặc định
               <select
                 className="mt-2 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 outline-none transition hover:border-slate-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isLoading || isSavingSettings}
@@ -291,20 +291,20 @@ export function OptionsApp() {
                 }}
                 value={settings.defaultReportLanguage}
               >
-                <option value="vi">Vietnamese</option>
-                <option value="en">English</option>
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">Tiếng Anh</option>
               </select>
             </label>
             <p className="mt-2 text-xs text-slate-500">
-              This preference is saved now but will be connected to generated reports in a later phase.
+              Lựa chọn này được lưu cục bộ và dùng cho các báo cáo được tạo.
             </p>
             <FeedbackMessage feedback={settingsFeedback} />
           </section>
 
           <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-lg font-medium">Export backup</h2>
+            <h2 className="text-lg font-medium">Xuất bản sao lưu</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Download your local items and settings as a versioned JSON file.
+              Tải nội dung và cài đặt cục bộ dưới dạng file JSON có phiên bản.
             </p>
             <button
               className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
@@ -314,18 +314,18 @@ export function OptionsApp() {
               }}
               type="button"
             >
-              Export JSON
+              Xuất JSON
             </button>
             <FeedbackMessage feedback={exportFeedback} />
           </section>
 
           <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
-            <h2 className="text-lg font-medium">Import backup</h2>
+            <h2 className="text-lg font-medium">Nhập bản sao lưu</h2>
             <p className="mt-2 text-sm font-medium text-amber-300">
-              Import will replace existing local T-eraClip data in this browser.
+              Dữ liệu nhập sẽ thay thế dữ liệu T-eraClip cục bộ hiện có.
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-400">
-              Select a T-eraClip JSON backup. The file is validated before confirmation and storage changes.
+              Chọn bản sao lưu JSON của T-eraClip. File sẽ được kiểm tra trước khi xác nhận và thay đổi dữ liệu.
             </p>
             <input
               accept=".json,application/json"
@@ -344,12 +344,12 @@ export function OptionsApp() {
           </section>
 
           <section className="rounded-lg border border-red-950 bg-slate-900 p-5">
-            <h2 className="text-lg font-medium">Clear local data</h2>
+            <h2 className="text-lg font-medium">Xóa dữ liệu cục bộ</h2>
             <p className="mt-2 text-sm text-slate-400">
-              Current items: {isLoading ? 'Loading...' : itemCount}
+              Số nội dung hiện có: {isLoading ? 'Đang tải...' : itemCount}
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-400">
-              This removes all saved items and settings from this browser.
+              Thao tác này xóa toàn bộ nội dung và cài đặt đã lưu trên trình duyệt.
             </p>
             <button
               className="mt-4 rounded-md border border-red-800 bg-red-950/50 px-4 py-2 text-sm font-medium text-red-200 transition hover:bg-red-900/60 disabled:cursor-not-allowed disabled:opacity-60"
@@ -359,7 +359,7 @@ export function OptionsApp() {
               }}
               type="button"
             >
-              Clear all local data
+              Xóa toàn bộ dữ liệu cục bộ
             </button>
             <FeedbackMessage feedback={clearFeedback} />
           </section>

@@ -14,6 +14,7 @@ import type {
   OneOfficeProjectTaskCollectionState,
   OneOfficeProjectTaskInventoryItem,
 } from '../oneoffice/types';
+import { TadtLogo } from '../shared/TadtLogo';
 
 interface TaskViewState {
   state: OneOfficeProjectTaskCollectionState;
@@ -21,25 +22,25 @@ interface TaskViewState {
 }
 
 const stateLabel: Record<OneOfficeProjectTaskCollectionState, string> = {
-  pending: 'Pending',
-  collecting: 'Collecting',
-  complete: 'Complete',
-  incomplete: 'Incomplete',
-  failed: 'Failed',
-  cancelled: 'Cancelled',
+  pending: 'Chờ xử lý',
+  collecting: 'Đang thu thập',
+  complete: 'Hoàn thành',
+  incomplete: 'Chưa đầy đủ',
+  failed: 'Thất bại',
+  cancelled: 'Đã hủy',
 };
 
 const stateColor: Record<OneOfficeProjectTaskCollectionState, string> = {
   pending: 'text-slate-500',
-  collecting: 'text-cyan-300',
-  complete: 'text-emerald-300',
-  incomplete: 'text-amber-300',
-  failed: 'text-red-300',
-  cancelled: 'text-slate-400',
+  collecting: 'text-blue-700',
+  complete: 'text-emerald-700',
+  incomplete: 'text-amber-700',
+  failed: 'text-red-700',
+  cancelled: 'text-slate-500',
 };
 
 const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'Unable to collect project discussions.';
+  error instanceof Error ? error.message : 'Không thể thu thập thảo luận của dự án.';
 
 export function ProjectReviewApp() {
   const [isLoading, setIsLoading] = useState(true);
@@ -66,10 +67,10 @@ export function ProjectReviewApp() {
     void getOneOfficeProjectBatchSession()
       .then(async (session) => {
         if (!session) {
-          throw new Error('No project collection session is available. Start it from the popup.');
+          throw new Error('Không có phiên thu thập dự án. Hãy bắt đầu lại từ cửa sổ T-eraClip.');
         }
 
-        setProjectName(session.inventory.project.name || `Project ${session.inventory.project.internalId}`);
+        setProjectName(session.inventory.project.name || `Dự án ${session.inventory.project.internalId}`);
         setInventoryTasks(session.inventory.tasks);
         setTaskStates(
           Object.fromEntries(
@@ -143,45 +144,46 @@ export function ProjectReviewApp() {
     setDownloadFeedback('');
     try {
       const filename = await downloadOneOfficeProjectXlsx(result);
-      setDownloadFeedback(`Downloaded ${filename}`);
+      setDownloadFeedback(`Đã tải xuống ${filename}`);
       setIsConfirmingExport(false);
     } catch (error) {
-      setDownloadFeedback(`Download failed. ${getErrorMessage(error)}`);
+      setDownloadFeedback(`Tải xuống thất bại. ${getErrorMessage(error)}`);
     } finally {
       setIsDownloading(false);
     }
   };
 
   if (isLoading) {
-    return <main className="mx-auto max-w-6xl p-8 text-sm text-slate-300">Preparing project collection...</main>;
+    return <main className="mx-auto max-w-6xl p-8 text-sm text-slate-600">Đang chuẩn bị thu thập dữ liệu dự án...</main>;
   }
 
   if (errorMessage) {
     return (
       <main className="mx-auto max-w-3xl p-8">
-        <section className="rounded-xl border border-red-900 bg-red-950/30 p-6">
-          <h1 className="text-xl font-semibold text-red-100">Project collection unavailable</h1>
-          <p className="mt-3 text-sm leading-6 text-red-200">{errorMessage}</p>
+        <section className="rounded-2xl border border-red-200 bg-red-50 p-6">
+          <h1 className="text-xl font-semibold text-red-800">Không thể thu thập dữ liệu dự án</h1>
+          <p className="mt-3 text-sm leading-6 text-red-700">{errorMessage}</p>
         </section>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-6 sm:p-8">
-      <header className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+    <main className="mx-auto max-w-7xl p-6 sm:p-8">
+      <header className="overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 via-indigo-800 to-violet-700 p-6 text-white shadow-xl shadow-blue-900/15">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
-              Project discussion collection
+          <div className="min-w-0">
+            <TadtLogo className="h-14 w-24 rounded-lg bg-white object-contain p-1" />
+            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+              Thu thập thảo luận toàn dự án
             </p>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-100">{projectName}</h1>
-            <p className="mt-2 text-sm text-slate-400">
+            <h1 className="mt-2 text-3xl font-semibold text-white">{projectName}</h1>
+            <p className="mt-2 text-sm text-blue-100">
               {isFinished
                 ? result?.cancelled
-                  ? 'Collection cancelled.'
-                  : 'Collection finished.'
-                : `Processed ${progress?.completedCount ?? 0} of ${progress?.totalCount ?? taskRows.length} tasks.`}
+                  ? 'Đã dừng thu thập.'
+                  : 'Đã hoàn tất thu thập.'
+                : `Đã xử lý ${progress?.completedCount ?? 0}/${progress?.totalCount ?? taskRows.length} công việc.`}
             </p>
           </div>
 
@@ -195,7 +197,7 @@ export function ProjectReviewApp() {
               }}
               type="button"
             >
-              {isCancelling ? 'Stopping after current group...' : 'Stop collection'}
+              {isCancelling ? 'Đang dừng sau nhóm hiện tại...' : 'Dừng thu thập'}
             </button>
           ) : (
             <button
@@ -207,53 +209,53 @@ export function ProjectReviewApp() {
               }}
               type="button"
             >
-              Export Excel
+              Xuất Excel
             </button>
           )}
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <p className="text-2xl font-semibold text-slate-100">{progress?.completedCount ?? 0}/{taskRows.length}</p>
-            <p className="mt-1 text-xs text-slate-500">Tasks processed</p>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+            <p className="text-2xl font-semibold text-white">{progress?.completedCount ?? 0}/{taskRows.length}</p>
+            <p className="mt-1 text-xs text-blue-100">Công việc đã xử lý</p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <p className="text-2xl font-semibold text-emerald-300">{successfulCount}</p>
-            <p className="mt-1 text-xs text-slate-500">Collected</p>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+            <p className="text-2xl font-semibold text-emerald-200">{successfulCount}</p>
+            <p className="mt-1 text-xs text-blue-100">Thu thập thành công</p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <p className="text-2xl font-semibold text-red-300">{failedCount}</p>
-            <p className="mt-1 text-xs text-slate-500">Failed</p>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+            <p className="text-2xl font-semibold text-red-200">{failedCount}</p>
+            <p className="mt-1 text-xs text-blue-100">Thất bại</p>
           </div>
-          <div className="rounded-lg border border-slate-800 bg-slate-950 p-3">
-            <p className="text-lg font-semibold text-slate-100">{rootCount} + {replyCount}</p>
-            <p className="mt-1 text-xs text-slate-500">Root comments + replies</p>
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+            <p className="text-lg font-semibold text-white">{rootCount} + {replyCount}</p>
+            <p className="mt-1 text-xs text-blue-100">Bình luận gốc + phản hồi</p>
           </div>
         </div>
 
-        <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-800">
+        <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/20">
           <div
-            className="h-full bg-cyan-500 transition-all"
+            className="h-full bg-cyan-300 transition-all"
             style={{
               width: `${taskRows.length ? ((progress?.completedCount ?? 0) / taskRows.length) * 100 : 0}%`,
             }}
           />
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Keep this page and the source project tab open. Tasks are collected in small groups; only discussions that need fallback may open in the source tab. Project-wide Excel export is not enabled in this validation phase.
+        <p className="mt-3 text-xs leading-5 text-blue-100">
+          Giữ trang này và tab dự án nguồn luôn mở. Hệ thống xử lý theo nhóm nhỏ; chỉ các thảo luận cần phương án dự phòng mới được mở trên tab nguồn.
         </p>
       </header>
 
       {downloadFeedback && (
-        <p className="mt-4 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-300">
+        <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
           {downloadFeedback}
         </p>
       )}
 
       {result && result.warnings.length > 0 && (
-        <section className="mt-5 rounded-xl border border-amber-800 bg-amber-950/30 p-5">
-          <h2 className="text-sm font-semibold text-amber-200">Collection warnings</h2>
-          <ul className="mt-3 space-y-2 text-sm text-amber-100">
+        <section className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <h2 className="text-sm font-semibold text-amber-800">Cảnh báo khi thu thập</h2>
+          <ul className="mt-3 space-y-2 text-sm text-amber-700">
             {result.warnings.map((warning) => (
               <li key={warning}>- {warning}</li>
             ))}
@@ -261,26 +263,26 @@ export function ProjectReviewApp() {
         </section>
       )}
 
-      <section className="mt-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
-        <div className="border-b border-slate-800 p-5">
-          <h2 className="text-lg font-semibold text-slate-100">Task collection status</h2>
+      <section className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 p-5">
+          <h2 className="text-lg font-semibold text-slate-900">Trạng thái thu thập theo công việc</h2>
           <p className="mt-1 text-xs text-slate-500">
-            The detailed list is shown here instead of the extension popup.
+            Danh sách chi tiết được hiển thị tại đây để dễ theo dõi dự án có nhiều công việc.
           </p>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-800 text-left text-sm">
-            <thead className="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-500">
+          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3">No.</th>
-                <th className="px-4 py-3">Task code</th>
-                <th className="px-4 py-3">Task name</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Discussion</th>
+                <th className="px-4 py-3">Mã công việc</th>
+                <th className="px-4 py-3">Tên công việc</th>
+                <th className="px-4 py-3">Trạng thái</th>
+                <th className="px-4 py-3">Thảo luận</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-100">
               {Object.entries(taskStates).map(([taskId, taskView]) => {
                 const sourceTask =
                   taskView.result?.task ??
@@ -290,17 +292,17 @@ export function ProjectReviewApp() {
 
                 return (
                   <tr key={taskId}>
-                    <td className="whitespace-nowrap px-4 py-3 font-medium text-cyan-300">{sourceTask?.no ?? ''}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-300">{sourceTask?.code ?? ''}</td>
-                    <td className="min-w-64 px-4 py-3 text-slate-200">{sourceTask?.name ?? `Task ${taskId}`}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-blue-700">{sourceTask?.no ?? ''}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">{sourceTask?.code ?? ''}</td>
+                    <td className="min-w-64 px-4 py-3 text-slate-800">{sourceTask?.name ?? `Công việc ${taskId}`}</td>
                     <td className={`whitespace-nowrap px-4 py-3 font-medium ${stateColor[taskView.state]}`}>
                       {stateLabel[taskView.state]}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-400">
+                    <td className="px-4 py-3 text-xs text-slate-500">
                       {taskView.result?.error
                         ? taskView.result.error
                         : discussion
-                          ? `${discussion.collection.loadedRootCommentCount} roots, ${discussion.collection.loadedReplyCount} replies`
+                          ? `${discussion.collection.loadedRootCommentCount} bình luận, ${discussion.collection.loadedReplyCount} phản hồi`
                           : ''}
                     </td>
                   </tr>
@@ -312,56 +314,56 @@ export function ProjectReviewApp() {
       </section>
 
       {isConfirmingExport && result && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
           <section
             aria-labelledby="confirm-project-export-title"
             aria-modal="true"
-            className="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+            className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl"
             role="dialog"
           >
             <h2
-              className="text-lg font-semibold text-slate-100"
+              className="text-lg font-semibold text-slate-900"
               id="confirm-project-export-title"
             >
-              Confirm project Excel export
+              Xác nhận xuất Excel toàn dự án
             </h2>
-            <p className="mt-3 break-all text-sm leading-6 text-slate-300">
+            <p className="mt-3 break-all text-sm leading-6 text-slate-700">
               {createOneOfficeProjectXlsxFilename(result)}
             </p>
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              The workbook contains Project, Tasks, Discussion, and Attachments sheets. It includes task No., task code, task name, comment hierarchy, authors, timestamps, mentions, and attachment metadata. Original attachment files are not included.
+              File gồm các sheet Dự án, Công việc, Thảo luận và Tệp đính kèm. Dữ liệu gồm No., mã và tên công việc, cấu trúc phản hồi, tác giả, thời gian, người được nhắc đến và thông tin tệp. File đính kèm gốc chưa được tải kèm.
             </p>
 
             {hasIncompleteTasks && (
-              <label className="mt-4 flex items-start gap-3 rounded-md border border-amber-800 bg-amber-950/30 p-3 text-sm text-amber-100">
+              <label className="mt-4 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 <input
                   checked={incompleteAcknowledged}
                   className="mt-1"
                   onChange={(event) => setIncompleteAcknowledged(event.target.checked)}
                   type="checkbox"
                 />
-                I understand that one or more tasks are incomplete, failed, or cancelled and still want to export the available data.
+                Tôi hiểu rằng một số công việc chưa đầy đủ, thất bại hoặc đã bị hủy và vẫn muốn xuất phần dữ liệu hiện có.
               </label>
             )}
 
             <div className="mt-6 flex justify-end gap-3">
               <button
-                className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                 disabled={isDownloading}
                 onClick={() => setIsConfirmingExport(false)}
                 type="button"
               >
-                Cancel
+                Hủy
               </button>
               <button
-                className="rounded-md bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isDownloading || (hasIncompleteTasks && !incompleteAcknowledged)}
                 onClick={() => {
                   void handleDownload();
                 }}
                 type="button"
               >
-                {isDownloading ? 'Preparing...' : 'Download Excel'}
+                {isDownloading ? 'Đang chuẩn bị...' : 'Tải file Excel'}
               </button>
             </div>
           </section>
