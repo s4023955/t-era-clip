@@ -1,5 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  collectOneOfficeDiscussion,
+  collectOneOfficeProjectInventory,
+  getActiveTab,
+  isOneOfficeProjectPageUrl,
+  isSupportedOneOfficeUrl,
+  subscribeToOneOfficeProgress,
+  type ActiveTab
+} from '../oneoffice/collectionClient';
+import type { OneOfficeCollectionProgress } from '../oneoffice/collector';
+import { openOneOfficeReview } from '../oneoffice/reviewSession';
+import { openOneOfficeProjectBatchReview } from '../oneoffice/projectBatchSession';
+import type {
+  OneOfficeDiscussionExport,
+  OneOfficeProjectInventory
+} from '../oneoffice/types';
+import {
   generateCompletedList,
   generateDailyReport,
   generateFollowUpList,
@@ -74,6 +90,14 @@ const getErrorMessage = (error: unknown): string => {
   return 'Unable to load captured items.';
 };
 
+const getOneOfficeErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Unable to collect the 1Office discussion.';
+};
+
 const generateReportText = (reportType: ReportType, items: TeraClipItem[]): string => {
   switch (reportType) {
     case 'followup':
@@ -118,6 +142,17 @@ export function PopupApp() {
   const [errorMessage, setErrorMessage] = useState('');
   const [updateErrorMessage, setUpdateErrorMessage] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [oneOfficeTab, setOneOfficeTab] = useState<ActiveTab | null>(null);
+  const [isCollectingOneOffice, setIsCollectingOneOffice] = useState(false);
+  const [oneOfficeProgress, setOneOfficeProgress] = useState<OneOfficeCollectionProgress | null>(
+    null
+  );
+  const [oneOfficeResult, setOneOfficeResult] = useState<OneOfficeDiscussionExport | null>(null);
+  const [oneOfficeError, setOneOfficeError] = useState('');
+  const [isOpeningOneOfficeReview, setIsOpeningOneOfficeReview] = useState(false);
+  const [isCollectingProjectInventory, setIsCollectingProjectInventory] = useState(false);
+  const [projectInventory, setProjectInventory] = useState<OneOfficeProjectInventory | null>(null);
+  const [isOpeningProjectReview, setIsOpeningProjectReview] = useState(false);
 
   const loadItems = useCallback(async () => {
     setIsLoading(true);
@@ -312,9 +347,105 @@ export function PopupApp() {
     }
   };
 
+  const handleCollectOneOffice = async () => {
+    if (!oneOfficeTab || isCollectingOneOffice) {
+      return;
+    }
+
+    setIsCollectingOneOffice(true);
+    setOneOfficeProgress(null);
+    setOneOfficeResult(null);
+    setOneOfficeError('');
+
+    try {
+      const result = await collectOneOfficeDiscussion(oneOfficeTab.id);
+      setOneOfficeResult(result);
+    } catch (error) {
+      setOneOfficeError(getOneOfficeErrorMessage(error));
+    } finally {
+      setIsCollectingOneOffice(false);
+    }
+  };
+
+  const handleOpenOneOfficeReview = async () => {
+    if (!oneOfficeResult || isOpeningOneOfficeReview) {
+      return;
+    }
+
+    setIsOpeningOneOfficeReview(true);
+    setOneOfficeError('');
+
+    try {
+      await openOneOfficeReview(oneOfficeResult);
+    } catch (error) {
+      setOneOfficeError(getOneOfficeErrorMessage(error));
+      setIsOpeningOneOfficeReview(false);
+    }
+  };
+
+  const handleCollectProjectInventory = async () => {
+    if (!oneOfficeTab || isCollectingProjectInventory) {
+      return;
+    }
+
+    setIsCollectingProjectInventory(true);
+    setProjectInventory(null);
+    setOneOfficeError('');
+
+    try {
+      const inventory = await collectOneOfficeProjectInventory(oneOfficeTab.id);
+      setProjectInventory(inventory);
+    } catch (error) {
+      setOneOfficeError(getOneOfficeErrorMessage(error));
+    } finally {
+      setIsCollectingProjectInventory(false);
+    }
+  };
+
+  const handleOpenProjectReview = async () => {
+    if (!oneOfficeTab || !projectInventory || isOpeningProjectReview) {
+      return;
+    }
+
+    setIsOpeningProjectReview(true);
+    setOneOfficeError('');
+
+    try {
+      await openOneOfficeProjectBatchReview(oneOfficeTab, projectInventory);
+    } catch (error) {
+      setOneOfficeError(getOneOfficeErrorMessage(error));
+      setIsOpeningProjectReview(false);
+    }
+  };
+
   useEffect(() => {
     void loadItems();
   }, [loadItems]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    void getActiveTab()
+      .then((tab) => {
+        if (isCurrent && tab && isSupportedOneOfficeUrl(tab.url)) {
+          setOneOfficeTab(tab);
+        }
+      })
+      .catch(() => {
+        if (isCurrent) {
+          setOneOfficeTab(null);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  useEffect(
+    () => subscribeToOneOfficeProgress((progress) => setOneOfficeProgress(progress)),
+    []
+  );
 
   const isFiltering = statusFilter !== 'all' || priorityFilter !== 'all';
   const filteredItems = items.filter((item) => {
@@ -326,6 +457,20 @@ export function PopupApp() {
   const itemCountLabel = isFiltering
     ? `${filteredItems.length} of ${items.length} ${items.length === 1 ? 'item' : 'items'}`
     : `${items.length} ${items.length === 1 ? 'captured item' : 'captured items'}`;
+  const oneOfficeAttachmentCount =
+    oneOfficeResult?.comments.reduce((count, comment) => count + comment.attachments.length, 0) ?? 0;
+  const oneOfficeRootCount = oneOfficeResult?.collection.loadedRootCommentCount ?? 0;
+  const oneOfficeReplyCount = oneOfficeResult?.collection.loadedReplyCount ?? 0;
+  const visibleOneOfficeWarnings =
+    oneOfficeResult?.collection.warnings.filter(
+      (warning) => !/^Ignored \d+ duplicate comment ID\(s\)/.test(warning)
+    ) ?? [];
+  const isOneOfficeProjectPage = oneOfficeTab
+    ? isOneOfficeProjectPageUrl(oneOfficeTab.url)
+    : false;
+  const inventoryMaxDepth = projectInventory
+    ? Math.max(...projectInventory.tasks.map((task) => task.depth), 0)
+    : 0;
 
   return (
     <div className="flex h-[520px] w-96 flex-col overflow-hidden bg-slate-950 text-slate-100">
@@ -403,6 +548,147 @@ export function PopupApp() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {oneOfficeTab && (
+          <section className="mb-4 rounded-md border border-cyan-900 bg-cyan-950/30 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-cyan-100">1Office discussion</h2>
+                <p className="mt-1 truncate text-[11px] text-cyan-200/70" title={oneOfficeTab.title}>
+                  {oneOfficeResult?.entity.name || oneOfficeTab.title || 'Current 1Office page'}
+                </p>
+              </div>
+
+              <button
+                className="shrink-0 rounded-md border border-cyan-700 px-3 py-1.5 text-xs font-medium text-cyan-100 transition hover:border-cyan-500 hover:bg-cyan-900/50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isCollectingOneOffice}
+                onClick={() => {
+                  void handleCollectOneOffice();
+                }}
+                type="button"
+              >
+                {isCollectingOneOffice ? 'Collecting...' : 'Collect discussion'}
+              </button>
+            </div>
+
+            {isOneOfficeProjectPage && (
+              <div className="mt-3 border-t border-cyan-900/80 pt-3">
+                <button
+                  className="w-full rounded-md border border-cyan-700 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:border-cyan-500 hover:bg-cyan-900/40 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isCollectingProjectInventory || isCollectingOneOffice}
+                  onClick={() => {
+                    void handleCollectProjectInventory();
+                  }}
+                  type="button"
+                >
+                  {isCollectingProjectInventory ? 'Checking project tasks...' : 'Check project tasks'}
+                </button>
+                <p className="mt-1.5 text-[10px] leading-4 text-cyan-200/60">
+                  Inventory validation only. Open the project&apos;s Công việc tab first.
+                </p>
+              </div>
+            )}
+
+            {isCollectingOneOffice && (
+              <p className="mt-3 text-xs text-cyan-100">
+                Loaded {oneOfficeProgress?.loadedRootCommentCount ?? 0}
+                {oneOfficeProgress?.expectedRootCommentCount
+                  ? `/${oneOfficeProgress.expectedRootCommentCount}`
+                  : ''}{' '}
+                root comments
+                {oneOfficeProgress ? `, ${oneOfficeProgress.loadMoreClicks} load-more clicks` : ''}.
+              </p>
+            )}
+
+            {oneOfficeError && (
+              <div className="mt-3 rounded-md border border-red-900 bg-red-950/40 p-3 text-xs text-red-100">
+                {oneOfficeError}
+              </div>
+            )}
+
+            {oneOfficeResult && (
+              <div className="mt-3 rounded-md border border-cyan-900 bg-slate-950/50 p-3">
+                <p className="text-xs font-medium text-cyan-100">
+                  {oneOfficeRootCount} root {oneOfficeRootCount === 1 ? 'comment' : 'comments'},{' '}
+                  {oneOfficeReplyCount} {oneOfficeReplyCount === 1 ? 'reply' : 'replies'},{' '}
+                  {oneOfficeAttachmentCount}{' '}
+                  {oneOfficeAttachmentCount === 1 ? 'attachment' : 'attachments'}
+                </p>
+                <p
+                  className={`mt-1 text-[11px] ${
+                    oneOfficeResult.collection.complete ? 'text-emerald-300' : 'text-amber-300'
+                  }`}
+                >
+                  {oneOfficeResult.collection.complete
+                    ? 'Collection complete.'
+                    : 'Collection incomplete. Review warnings before export.'}
+                </p>
+                {visibleOneOfficeWarnings.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-[11px] leading-4 text-amber-200">
+                    {visibleOneOfficeWarnings.map((warning) => (
+                      <li key={warning}>- {warning}</li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mt-2 text-[11px] text-slate-500">
+                  Temporary validation only. Nothing was saved or downloaded.
+                </p>
+                <button
+                  className="mt-3 w-full rounded-md border border-cyan-700 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:border-cyan-500 hover:bg-cyan-900/40 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isOpeningOneOfficeReview}
+                  onClick={() => {
+                    void handleOpenOneOfficeReview();
+                  }}
+                  type="button"
+                >
+                  {isOpeningOneOfficeReview ? 'Opening preview...' : 'Review and export JSON'}
+                </button>
+              </div>
+            )}
+
+            {projectInventory && (
+              <div className="mt-3 rounded-md border border-cyan-900 bg-slate-950/50 p-3">
+                <p className="text-xs font-medium text-cyan-100">
+                  {projectInventory.collection.loadedTaskCount} project tasks, {inventoryMaxDepth}{' '}
+                  {inventoryMaxDepth === 1 ? 'level' : 'levels'}
+                </p>
+                <p
+                  className={`mt-1 text-[11px] ${
+                    projectInventory.collection.complete ? 'text-emerald-300' : 'text-amber-300'
+                  }`}
+                >
+                  {projectInventory.collection.complete
+                    ? 'Task inventory complete.'
+                    : 'Task inventory needs review.'}
+                </p>
+
+                {projectInventory.collection.warnings.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-[11px] leading-4 text-amber-200">
+                    {projectInventory.collection.warnings.map((warning) => (
+                      <li key={warning}>- {warning}</li>
+                    ))}
+                  </ul>
+                )}
+
+                <button
+                  className="mt-3 w-full rounded-md bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isOpeningProjectReview || !projectInventory.collection.complete}
+                  onClick={() => {
+                    void handleOpenProjectReview();
+                  }}
+                  type="button"
+                >
+                  {isOpeningProjectReview
+                    ? 'Opening project collection...'
+                    : 'Collect all task discussions'}
+                </button>
+                <p className="mt-2 text-[10px] text-slate-500">
+                  Progress and task details will open in a separate full-page view.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+
         <section className="mb-4 rounded-md border border-slate-800 bg-slate-900 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>

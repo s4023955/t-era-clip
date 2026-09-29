@@ -3,7 +3,7 @@
   "description": "Clip anything. Turn it into action.",
   "version": "0.1.0",
   "manifest_version": 3,
-  "permissions": ["storage", "contextMenus", "activeTab"],
+  "permissions": ["storage", "contextMenus", "activeTab", "scripting"],
   "action": {
     "default_popup": "popup.html",
     "default_title": "T-eraClip"
